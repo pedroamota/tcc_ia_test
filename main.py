@@ -1,64 +1,79 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
-import numpy as np
+from torch.utils.data import DataLoader, Dataset
 
-# Configuração do dispositivo
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Dataset dinâmico para gerar os dados sob demanda
+class SyntheticDataset(Dataset):
+    def __init__(self, num_samples, input_size, device):
+        self.num_samples = num_samples
+        self.input_size = input_size
+        self.device = device
 
-# Carregar o dataset Iris
-iris = load_iris()
-X = iris.data
-y = iris.target
+    def __len__(self):
+        return self.num_samples
 
-# Pré-processamento dos dados
-scaler = StandardScaler()
-X = scaler.fit_transform(X)
+    def __getitem__(self, idx):
+        X = torch.rand(self.input_size, device=self.device)
+        y = torch.sum(X ** 2).unsqueeze(0)  # Soma dos quadrados como saída
+        return X, y
 
-# Dividir o dataset em treino e teste
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+def main():
+    # Configurações
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    input_size = 2000
+    hidden_size = 4096
+    num_layers = 6
+    output_size = 1
+    num_samples = 5_000_000
+    batch_size = 2048
+    num_epochs = 10
 
-# Convertendo para tensores
-X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
-X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
-y_train = torch.tensor(y_train, dtype=torch.long).to(device)
-y_test = torch.tensor(y_test, dtype=torch.long).to(device)
+    # Criar dataset e dataloader
+    dataset = SyntheticDataset(num_samples, input_size, device)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# Definindo o modelo da árvore de decisão
-class SimpleDecisionTree(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(SimpleDecisionTree, self).__init__()
-        self.fc = nn.Linear(input_size, output_size)  # Camada linear para simular a decisão
+    # Modelo complexo
+    class ComplexModel(nn.Module):
+        def __init__(self):
+            super(ComplexModel, self).__init__()
+            self.layers = nn.Sequential(
+                nn.Linear(input_size, hidden_size),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                *[
+                    nn.Sequential(
+                        nn.Linear(hidden_size, hidden_size),
+                        nn.ReLU(),
+                        nn.Dropout(0.2)
+                    ) for _ in range(num_layers - 2)
+                ],
+                nn.Linear(hidden_size, output_size)
+            )
+        
+        def forward(self, x):
+            return self.layers(x)
 
-    def forward(self, x):
-        return self.fc(x)
+    model = ComplexModel().to(device)
 
-# Configurando o modelo, a função de perda e o otimizador
-model = SimpleDecisionTree(input_size=4, output_size=3).to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.01)
+    # Função de perda e otimizador
+    criterion = nn.MSELoss()
+    optimizer = optim.AdamW(model.parameters(), lr=0.0005)
 
-# Treinamento do modelo
-epochs = 100
-for epoch in range(epochs):
-    model.train()
-    optimizer.zero_grad()
-    outputs = model(X_train)
-    loss = criterion(outputs, y_train)
-    loss.backward()
-    optimizer.step()
+    # Treinamento
+    print("Treinando modelo complexo...")
+    for epoch in range(num_epochs):
+        total_loss = 0
+        for batch_X, batch_y in dataloader:
+            optimizer.zero_grad()
+            outputs = model(batch_X)
+            loss = criterion(outputs, batch_y)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
 
-    if (epoch + 1) % 10 == 0:
-        print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}")
+    print("Treinamento concluído!")
 
-# Avaliação do modelo
-model.eval()
-with torch.no_grad():
-    predictions = model(X_test)
-    _, predicted_labels = torch.max(predictions, 1)
-    accuracy = accuracy_score(y_test.cpu(), predicted_labels.cpu())
-    print(f"\nAccuracy on test set: {accuracy * 100:.2f}%")
+if __name__ == "__main__":
+    main()
