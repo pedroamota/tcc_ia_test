@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm  # Importar a barra de progresso
 
 # Dataset dinâmico para gerar os dados sob demanda
 class SyntheticDataset(Dataset):
@@ -64,14 +65,16 @@ def main():
     print("Treinando modelo complexo...")
     for epoch in range(num_epochs):
         total_loss = 0
-        for batch_X, batch_y in dataloader:
-            optimizer.zero_grad()
-            outputs = model(batch_X)
-            loss = criterion(outputs, batch_y)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
+        with tqdm(dataloader, desc=f"Epoch [{epoch+1}/{num_epochs}]", unit="batch") as tepoch:
+            for batch_X, batch_y in tepoch:
+                optimizer.zero_grad()
+                outputs = model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+                tepoch.set_postfix(loss=loss.item())  # Exibir a perda atual no lote
+        print(f"Epoch [{epoch+1}/{num_epochs}], Total Loss: {total_loss:.4f}")
 
     print("Treinamento concluído!")
 
