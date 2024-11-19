@@ -22,13 +22,13 @@ class SyntheticDataset(Dataset):
 def main():
     # Configurações
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    input_size = 4000  # Aumentar tamanho de entrada
-    hidden_size = 8192  # Mais neurônios
-    num_layers = 10  # Mais camadas
+    input_size = 1000  # Reduzir o tamanho de entrada
+    hidden_size = 2048  # Reduzir número de neurônios
+    num_layers = 5  # Reduzir número de camadas
     output_size = 1
-    num_samples = 10_000_000  # Dados massivos
-    batch_size = 32_768  # Tamanho de lote massivo
-    num_epochs = 1
+    num_samples = 1_000_000  # Reduzir o número de amostras
+    batch_size = 512  # Reduzir o batch size
+    num_epochs = 5
 
     # Criar dataset e dataloader
     dataset = SyntheticDataset(num_samples, input_size)
@@ -77,6 +77,7 @@ def main():
 
                 total_loss += loss.item()
                 tepoch.set_postfix(loss=loss.item())
+        
         print(f"Epoch [{epoch+1}/{num_epochs}], Total Loss: {total_loss:.4f}")
 
     print("Treinamento concluído!")
