@@ -28,7 +28,7 @@ def main():
     output_size = 1
     num_samples = 5_000_000
     batch_size = 8192  # Aumentado para uso mais intenso da GPU
-    num_epochs = 10
+    num_epochs = 1
 
     # Criar dataset e dataloader
     dataset = SyntheticDataset(num_samples, input_size, device)
