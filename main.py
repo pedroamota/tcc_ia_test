@@ -15,7 +15,7 @@ class SyntheticDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        X = torch.rand(self.input_size, dtype=torch.float64)  # Usar float64
+        X = torch.rand(self.input_size, dtype=torch.float32)  # Usar float32
         y = torch.sum(X ** 2).unsqueeze(0)
         return X, y
 
@@ -28,7 +28,7 @@ def main():
     output_size = 1
     num_samples = 10_000_000  # Dados massivos
     batch_size = 32_768  # Tamanho de lote massivo
-    num_epochs = 2
+    num_epochs = 1
 
     # Criar dataset e dataloader
     dataset = SyntheticDataset(num_samples, input_size)
@@ -55,7 +55,7 @@ def main():
         def forward(self, x):
             return self.layers(x)
 
-    model = ExtremeModel().to(device)
+    model = ExtremeModel().to(device).to(torch.float32)  # Garantir float32 no modelo
 
     # Função de perda e otimizador
     criterion = nn.MSELoss()
