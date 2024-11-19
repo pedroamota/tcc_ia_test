@@ -28,7 +28,7 @@ def main():
     output_size = 1
     num_samples = 1_000_000  # Reduzir o número de amostras
     batch_size = 512  # Reduzir o batch size
-    num_epochs = 5
+    num_epochs = 20
 
     # Criar dataset e dataloader
     dataset = SyntheticDataset(num_samples, input_size)
