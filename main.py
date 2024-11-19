@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm  # Importar a barra de progresso
+from tqdm import tqdm
 
 # Dataset dinâmico para gerar os dados sob demanda
 class SyntheticDataset(Dataset):
@@ -16,7 +16,7 @@ class SyntheticDataset(Dataset):
 
     def __getitem__(self, idx):
         X = torch.rand(self.input_size, device=self.device)
-        y = torch.sum(X ** 2).unsqueeze(0)  # Soma dos quadrados como saída
+        y = torch.sum(X ** 2).unsqueeze(0)
         return X, y
 
 def main():
@@ -24,10 +24,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     input_size = 2000
     hidden_size = 4096
-    num_layers = 6
+    num_layers = 4  # Reduzido para acelerar
     output_size = 1
     num_samples = 5_000_000
-    batch_size = 2048
+    batch_size = 8192  # Aumentado para uso mais intenso da GPU
     num_epochs = 10
 
     # Criar dataset e dataloader
@@ -41,12 +41,12 @@ def main():
             self.layers = nn.Sequential(
                 nn.Linear(input_size, hidden_size),
                 nn.ReLU(),
-                nn.Dropout(0.2),
+                nn.Dropout(0.1),  # Menor dropout para aumentar desempenho
                 *[
                     nn.Sequential(
                         nn.Linear(hidden_size, hidden_size),
                         nn.ReLU(),
-                        nn.Dropout(0.2)
+                        nn.Dropout(0.1)
                     ) for _ in range(num_layers - 2)
                 ],
                 nn.Linear(hidden_size, output_size)
@@ -59,7 +59,10 @@ def main():
 
     # Função de perda e otimizador
     criterion = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=0.0005)
+    optimizer = optim.AdamW(model.parameters(), lr=0.001)
+
+    # Usar mixed precision
+    scaler = torch.cuda.amp.GradScaler()
 
     # Treinamento
     print("Treinando modelo complexo...")
@@ -68,12 +71,17 @@ def main():
         with tqdm(dataloader, desc=f"Epoch [{epoch+1}/{num_epochs}]", unit="batch") as tepoch:
             for batch_X, batch_y in tepoch:
                 optimizer.zero_grad()
-                outputs = model(batch_X)
-                loss = criterion(outputs, batch_y)
-                loss.backward()
-                optimizer.step()
+
+                # Forward e backward com mixed precision
+                with torch.cuda.amp.autocast():
+                    outputs = model(batch_X)
+                    loss = criterion(outputs, batch_y)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+
                 total_loss += loss.item()
-                tepoch.set_postfix(loss=loss.item())  # Exibir a perda atual no lote
+                tepoch.set_postfix(loss=loss.item())
         print(f"Epoch [{epoch+1}/{num_epochs}], Total Loss: {total_loss:.4f}")
 
     print("Treinamento concluído!")
